@@ -6,9 +6,11 @@
       lineIndex: .space 4
       columnIndex: .space 4
       mat: .space 1296
+      vecini: .space 1296
       i: .space 4
       line: .space 4
       column: .space 4
+      sum: .space 4
       m2: .space 4
       n2: .space 4
       formatScan: .asciz "%d\n"
@@ -16,6 +18,58 @@
       newLine: .asciz "\n"
 
 .text
+
+calculate_neighbors_sum:
+    #   %edi - linia elementului
+    #   %esi - coloana elementului
+
+    movl $0, %eax
+
+    # Calculăm adresa efectivă a matricei și o încărcăm în %edi
+    lea mat, %edi
+
+    # Vecinul de sus
+    subl $1, %edi
+    movl (%edi, %esi, 4), %ecx
+    addl %ecx, %eax
+
+    # Vecinul din dreapta sus
+    addl $1, %esi
+    movl (%edi, %esi, 4), %ecx
+    addl %ecx, %eax
+
+    # Vecinul din dreapta
+    addl $1, %esi
+    movl (%edi, %esi, 4), %ecx
+    addl %ecx, %eax
+
+    # Vecinul din dreapta jos
+    addl $1, %esi
+    movl (%edi, %esi, 4), %ecx
+    addl %ecx, %eax
+
+    # Vecinul de jos
+    addl $1, %edi
+    movl (%edi, %esi, 4), %ecx
+    addl %ecx, %eax
+
+    # Vecinul din stânga jos
+    subl $1, %esi
+    movl (%edi, %esi, 4), %ecx
+    addl %ecx, %eax
+
+    # Vecinul din stânga
+    subl $1, %esi
+    movl (%edi, %esi, 4), %ecx
+    addl %ecx, %eax
+
+    # Vecinul din stânga sus
+    subl $1, %esi
+    movl (%edi, %esi, 4), %ecx
+    addl %ecx, %eax
+
+
+    ret
 
 .global main
 main:
@@ -47,6 +101,7 @@ main:
       movl %eax, n
 
       movl $0, i
+
 for:
       movl i, %ecx
       cmp p, %ecx
@@ -93,19 +148,72 @@ et2:
       popl %ebx
       popl %ebx
 
-###
-      xor %ecx, %ecx
+#
+lea vecini, %edi
 
-generatii:
-      cmp %ecx, k
-      je afisare
+# Setăm toate elementele matricei la 0, inclusiv prima linie și prima coloană
 
-      #for(i=0;i<=k;i++)
-      #idee: %eax = suma vecinilor, push pe stiva, for-invers, pop de pe stiva, modificare matrice in functie de ce e in ebx
+movl $0, %esi
+loop_rows3:
+    movl $0, %eax
+    loop_columns3:
 
-      incl %ecx
-      jmp generatii
-###
+        # Setează elementul curent la 0
+        movl $0, (%edi, %eax, 4)
+
+        # Incrementarea coloanei
+        addl $1, %eax
+        cmpl n, %eax
+        jge end_loop_columns3
+
+        jmp loop_columns3
+    end_loop_columns3:
+
+    # Incrementarea liniei
+    addl $1, %edi
+    cmpl m, %edi
+    jge end_loop_rows3
+
+    jmp loop_rows3
+end_loop_rows3:
+
+lea mat, %edi
+
+# Parcurgem matricea (cu excepția marginilor)
+movl $1, %ecx  # Ignorăm prima linie
+loop_rows:
+    movl $1, %esi  # Ignorăm prima coloană
+    loop_columns:
+
+        # Apelează calculate_neighbors_sum pentru elementul curent
+        pushl %esi
+        pushl %edi
+        call calculate_neighbors_sum
+        popl %edi
+        popl %esi
+
+        lea vecini, %edi
+        movl %eax, (%edi, %esi, 4)
+
+        # Incrementarea coloanei
+        addl $1, %esi
+        cmpl n, %esi
+        jge end_loop_columns
+
+        jmp loop_columns
+        end_loop_columns:
+
+        # Incrementarea liniei
+        addl $1, %edi
+        cmpl m, %edi
+        jge end_loop_rows
+
+    jmp loop_rows
+end_loop_rows:
+
+#
+
+#restul codului
 
 afisare:
 #se afiseaza fara prima si ultima coloana/linie
@@ -141,7 +249,7 @@ afisare:
                           mull n
                           addl columnIndex, %eax
 
-                          lea mat, %edi
+                          lea vecini, %edi
                           movl (%edi, %eax, 4), %ebx
 
                           pushl %ebx
@@ -167,6 +275,8 @@ afisare:
 
               incl lineIndex
               jmp for_lines
+
+
 
 exit:
       movl $1, %eax
